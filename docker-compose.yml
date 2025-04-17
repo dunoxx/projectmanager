@@ -37,8 +37,8 @@ services:
       JWT_SECRET: your_jwt_secret_here
       PLANE_API_KEY: your_plane_api_key
       OUTLINE_API_KEY: your_outline_api_key
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,10 +59,54 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: http://api:3001
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     depends_on:
       - api
+    networks:
+      - app-network
+
+  plane:
+    build:
+      context: ./packages/plane
+      dockerfile: Dockerfile
+    image: projectmanager-plane:latest
+    container_name: projectmanager_plane
+    restart: unless-stopped
+    expose:
+      - "3000"
+    networks:
+      - app-network
+
+  outline:
+    build:
+      context: ./packages/outline
+      dockerfile: Dockerfile
+    image: projectmanager-outline:latest
+    container_name: projectmanager_outline
+    restart: unless-stopped
+    expose:
+      - "3001"
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: projectmanager_nginx
+    restart: unless-stopped
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "8080:80"
+    labels:
+      - "easypanel.publish=true"
+      - "easypanel.port=8080"
+    depends_on:
+      - web
+      - api
+      - plane
+      - outline
     networks:
       - app-network
 

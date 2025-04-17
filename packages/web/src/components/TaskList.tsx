@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import axios from 'axios';
 
 interface Task {
   id: string;
@@ -14,685 +15,362 @@ interface Task {
   dueDate?: string;
   createdAt: string;
   tags: string[];
+  projectId: string;
 }
 
 interface TaskListProps {
   projectId: string;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ projectId }) => {
-  // Estado para as tarefas
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  
-  // Estados para filtros e ordenação
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [priorityFilter, setPriorityFilter] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'priority' | 'dueDate' | 'createdAt'>('createdAt');
-  
-  // Estado para nova tarefa
-  const [isAddingTask, setIsAddingTask] = useState(false);
-  const [newTask, setNewTask] = useState<{
-    title: string;
-    description: string;
-    status: 'todo' | 'in_progress' | 'done';
-    priority: 'low' | 'medium' | 'high';
-  }>({
-    title: '',
-    description: '',
-    status: 'todo',
-    priority: 'medium'
-  });
+// Componente TaskItem otimizado com memo
+const TaskItem = memo(({ 
+  task, 
+  onStatusChange, 
+  onDelete 
+}: { 
+  task: Task; 
+  onStatusChange: (id: string, status: 'todo' | 'in_progress' | 'done') => void; 
+  onDelete: (id: string) => void; 
+}) => {
+  const handleStatusChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    onStatusChange(task.id, e.target.value as 'todo' | 'in_progress' | 'done');
+  }, [task.id, onStatusChange]);
 
-  // Filtrar tarefas
-  const filteredTasks = tasks.filter((task: Task) => {
-    // Filtro por status
-    if (statusFilter !== 'all' && task.status !== statusFilter) {
-      return false;
-    }
-    
-    // Filtro por prioridade
-    if (priorityFilter !== 'all' && task.priority !== priorityFilter) {
-      return false;
-    }
-    
-    // Busca por texto
-    if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    
-    return true;
-  });
-  
-  // Ordenar tarefas
-  const sortedTasks = [...filteredTasks].sort((a: Task, b: Task) => {
-    if (sortBy === 'priority') {
-      const priorityValues: Record<string, number> = { high: 3, medium: 2, low: 1 };
-      return priorityValues[b.priority] - priorityValues[a.priority];
-    } else if (sortBy === 'dueDate' && a.dueDate && b.dueDate) {
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-    } else {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    }
-  });
+  const handleDelete = useCallback(() => {
+    onDelete(task.id);
+  }, [task.id, onDelete]);
 
-  // Manipuladores de eventos
-  const handleAddTask = () => {
-    if (!newTask.title.trim()) return;
-    
-    const task: Task = {
-      id: `task-${Date.now()}`,
-      title: newTask.title,
-      description: newTask.description,
-      status: newTask.status,
-      priority: newTask.priority,
-      createdAt: new Date().toISOString(),
-      tags: []
-    };
-    
-    setTasks([...tasks, task]);
-    setNewTask({
-      title: '',
-      description: '',
-      status: 'todo',
-      priority: 'medium'
-    });
-    setIsAddingTask(false);
-  };
-  
-  const handleStatusChange = (taskId: string, status: 'todo' | 'in_progress' | 'done') => {
-    setTasks(tasks.map((task: Task) => 
-      task.id === taskId ? { ...task, status } : task
-    ));
-  };
-  
-  const handleDeleteTask = (taskId: string) => {
-    setTasks(tasks.filter((task: Task) => task.id !== taskId));
-  };
+  const formattedDate = useMemo(() => {
+    return task.dueDate 
+      ? new Date(task.dueDate).toLocaleDateString('pt-BR')
+      : null;
+  }, [task.dueDate]);
 
-  // Funções auxiliares para renderização
-  const getStatusLabel = (status: string) => {
-    switch(status) {
-      case 'todo': return 'A Fazer';
-      case 'in_progress': return 'Em Progresso';
-      case 'done': return 'Concluído';
-      default: return status;
+  const priorityClass = useMemo(() => {
+    switch (task.priority) {
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
-  };
-  
-  const getPriorityLabel = (priority: string) => {
-    switch(priority) {
-      case 'low': return 'Baixa';
-      case 'medium': return 'Média';
-      case 'high': return 'Alta';
-      default: return priority;
-    }
-  };
-  
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
-  };
+  }, [task.priority]);
 
   return (
-    <div className="task-list">
-      <div className="task-list-header">
-        <h2>Tarefas do Projeto</h2>
-        <button 
-          className="add-task-btn"
-          onClick={() => setIsAddingTask(true)}
-        >
-          + Nova Tarefa
-        </button>
-      </div>
-      
-      <div className="task-filters">
-        <div className="search-box">
-          <input
-            type="text"
-            placeholder="Buscar tarefas..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        
-        <div className="filter-group">
-          <select 
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+    <div className="task-item bg-white shadow-sm rounded-lg p-4 mb-3 hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="text-lg font-semibold text-gray-800">{task.title}</h3>
+        <div className="flex space-x-2">
+          <select
+            value={task.status}
+            onChange={handleStatusChange}
+            className="text-sm border rounded px-2 py-1 text-gray-600"
           >
-            <option value="all">Todos Status</option>
             <option value="todo">A Fazer</option>
             <option value="in_progress">Em Progresso</option>
             <option value="done">Concluído</option>
           </select>
-          
-          <select 
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
+          <button
+            onClick={handleDelete}
+            className="text-red-500 hover:text-red-700"
           >
-            <option value="all">Todas Prioridades</option>
-            <option value="high">Alta</option>
-            <option value="medium">Média</option>
-            <option value="low">Baixa</option>
-          </select>
-          
-          <select 
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-          >
-            <option value="createdAt">Data de Criação</option>
-            <option value="dueDate">Data de Vencimento</option>
-            <option value="priority">Prioridade</option>
-          </select>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+          </button>
         </div>
       </div>
+      <p className="text-gray-600 mb-3">{task.description}</p>
+      <div className="flex flex-wrap items-center text-sm text-gray-500 gap-3">
+        {task.priority && (
+          <span className={`px-2 py-1 rounded-full text-xs ${priorityClass}`}>
+            {task.priority === 'high' ? 'Alta' : task.priority === 'medium' ? 'Média' : 'Baixa'}
+          </span>
+        )}
+        {task.assignee && (
+          <div className="flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span>{task.assignee.name}</span>
+          </div>
+        )}
+        {formattedDate && (
+          <div className="flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span>{formattedDate}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+TaskItem.displayName = 'TaskItem';
+
+// Componente TaskFilter otimizado com memo
+const TaskFilter = memo(({ 
+  filters, 
+  onFilterChange 
+}: { 
+  filters: { status: string; priority: string }; 
+  onFilterChange: (key: 'status' | 'priority', value: string) => void; 
+}) => {
+  const handleStatusChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    onFilterChange('status', e.target.value);
+  }, [onFilterChange]);
+
+  const handlePriorityChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    onFilterChange('priority', e.target.value);
+  }, [onFilterChange]);
+
+  return (
+    <div className="flex flex-wrap gap-4 mb-6">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+        <select
+          value={filters.status}
+          onChange={handleStatusChange}
+          className="border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm rounded-md p-2"
+        >
+          <option value="">Todos</option>
+          <option value="todo">A Fazer</option>
+          <option value="in_progress">Em Progresso</option>
+          <option value="done">Concluído</option>
+        </select>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Prioridade</label>
+        <select
+          value={filters.priority}
+          onChange={handlePriorityChange}
+          className="border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm rounded-md p-2"
+        >
+          <option value="">Todas</option>
+          <option value="high">Alta</option>
+          <option value="medium">Média</option>
+          <option value="low">Baixa</option>
+        </select>
+      </div>
+    </div>
+  );
+});
+
+TaskFilter.displayName = 'TaskFilter';
+
+const TaskList: React.FC<TaskListProps> = ({ projectId }) => {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState({ status: '', priority: '' });
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    status: 'todo' as const,
+    priority: 'medium' as const,
+    assignee: '',
+    dueDate: ''
+  });
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get('/api/tasks');
+        setTasks(response.data);
+        setError(null);
+      } catch (err) {
+        console.error('Erro ao buscar tarefas:', err);
+        setError('Não foi possível carregar as tarefas. Tente novamente mais tarde.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTasks();
+  }, []);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setNewTask(prev => ({ ...prev, [name]: value }));
+  }, []);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const response = await axios.post('/api/tasks', {
+        ...newTask,
+        projectId
+      });
+      setTasks(prev => [...prev, response.data as Task]);
+      setNewTask({
+        title: '',
+        description: '',
+        status: 'todo' as const,
+        priority: 'medium' as const,
+        assignee: '',
+        dueDate: ''
+      });
+    } catch (err) {
+      console.error('Erro ao adicionar tarefa:', err);
+      setError('Não foi possível adicionar a tarefa. Tente novamente.');
+    }
+  }, [newTask, projectId]);
+
+  const handleStatusChange = useCallback(async (id: string, status: 'todo' | 'in_progress' | 'done') => {
+    try {
+      await axios.patch(`/api/tasks/${id}`, { status });
+      setTasks(prev => 
+        prev.map(task => 
+          task.id === id ? { ...task, status } : task
+        )
+      );
+    } catch (err) {
+      console.error('Erro ao atualizar status:', err);
+      setError('Não foi possível atualizar o status da tarefa.');
+    }
+  }, []);
+
+  const handleDelete = useCallback(async (id: string) => {
+    try {
+      await axios.delete(`/api/tasks/${id}`);
+      setTasks(prev => prev.filter(task => task.id !== id));
+    } catch (err) {
+      console.error('Erro ao excluir tarefa:', err);
+      setError('Não foi possível excluir a tarefa.');
+    }
+  }, []);
+
+  const handleFilterChange = useCallback((key: 'status' | 'priority', value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      const matchesStatus = !filters.status || task.status === filters.status;
+      const matchesPriority = !filters.priority || task.priority === filters.priority;
+      return matchesStatus && matchesPriority;
+    });
+  }, [tasks, filters]);
+
+  if (loading) {
+    return <div className="flex justify-center mt-8"><div className="animate-spin h-8 w-8 border-4 border-indigo-500 rounded-full border-t-transparent"></div></div>;
+  }
+
+  return (
+    <div className="task-list">
+      {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-5" role="alert">{error}</div>}
       
-      {isAddingTask && (
-        <div className="add-task-form">
-          <h3>Nova Tarefa</h3>
-          <input
-            type="text"
-            placeholder="Título da tarefa"
-            value={newTask.title}
-            onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-          />
-          <textarea
-            placeholder="Descrição (opcional)"
-            value={newTask.description}
-            onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-          />
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label>Status</label>
+      <div className="add-task-form bg-white shadow-sm rounded-lg p-5 mb-6">
+        <h2 className="text-xl font-bold mb-4 text-gray-800">Adicionar Nova Tarefa</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+              <input
+                type="text"
+                name="title"
+                value={newTask.title}
+                onChange={handleInputChange}
+                required
+                className="border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm rounded-md p-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Responsável</label>
+              <input
+                type="text"
+                name="assignee"
+                value={newTask.assignee}
+                onChange={handleInputChange}
+                className="border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm rounded-md p-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
+                name="status"
                 value={newTask.status}
-                onChange={(e) => setNewTask({...newTask, status: e.target.value as any})}
+                onChange={handleInputChange}
+                className="border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm rounded-md p-2"
               >
                 <option value="todo">A Fazer</option>
                 <option value="in_progress">Em Progresso</option>
                 <option value="done">Concluído</option>
               </select>
             </div>
-            
-            <div className="form-group">
-              <label>Prioridade</label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Prioridade</label>
               <select
+                name="priority"
                 value={newTask.priority}
-                onChange={(e) => setNewTask({...newTask, priority: e.target.value as any})}
+                onChange={handleInputChange}
+                className="border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm rounded-md p-2"
               >
-                <option value="low">Baixa</option>
-                <option value="medium">Média</option>
                 <option value="high">Alta</option>
+                <option value="medium">Média</option>
+                <option value="low">Baixa</option>
               </select>
             </div>
-          </div>
-          
-          <div className="form-actions">
-            <button className="cancel-btn" onClick={() => setIsAddingTask(false)}>Cancelar</button>
-            <button className="save-btn" onClick={handleAddTask}>Salvar</button>
-          </div>
-        </div>
-      )}
-      
-      <div className="tasks-container">
-        {sortedTasks.length > 0 ? (
-          sortedTasks.map(task => (
-            <div key={task.id} className={`task-card priority-${task.priority}`}>
-              <div className="task-header">
-                <div className="task-title">{task.title}</div>
-                <div className="task-actions">
-                  <button onClick={() => handleDeleteTask(task.id)} className="delete-btn">
-                    🗑️
-                  </button>
-                </div>
-              </div>
-              
-              {task.description && (
-                <div className="task-description">{task.description}</div>
-              )}
-              
-              <div className="task-meta">
-                <div className="task-status">
-                  <span className="meta-label">Status:</span>
-                  <select
-                    value={task.status}
-                    onChange={(e) => handleStatusChange(task.id, e.target.value as any)}
-                    className={`status-badge status-${task.status}`}
-                  >
-                    <option value="todo">A Fazer</option>
-                    <option value="in_progress">Em Progresso</option>
-                    <option value="done">Concluído</option>
-                  </select>
-                </div>
-                
-                <div className="task-priority">
-                  <span className="meta-label">Prioridade:</span>
-                  <span className={`priority-badge priority-${task.priority}`}>
-                    {getPriorityLabel(task.priority)}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="task-footer">
-                {task.assignee && (
-                  <div className="task-assignee">
-                    <span className="assignee-avatar">{task.assignee.avatar}</span>
-                    <span className="assignee-name">{task.assignee.name}</span>
-                  </div>
-                )}
-                
-                <div className="task-dates">
-                  {task.dueDate && (
-                    <span className="due-date">
-                      Vence: {formatDate(task.dueDate)}
-                    </span>
-                  )}
-                  <span className="created-date">
-                    Criada: {formatDate(task.createdAt)}
-                  </span>
-                </div>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
+              <input
+                type="date"
+                name="dueDate"
+                value={newTask.dueDate}
+                onChange={handleInputChange}
+                className="border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm rounded-md p-2"
+              />
             </div>
-          ))
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+            <textarea
+              name="description"
+              value={newTask.description}
+              onChange={handleInputChange}
+              rows={3}
+              className="border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm rounded-md p-2"
+            ></textarea>
+          </div>
+          <button
+            type="submit"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Adicionar Tarefa
+          </button>
+        </form>
+      </div>
+
+      <div className="tasks-container">
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="text-xl font-bold text-gray-800">Lista de Tarefas</h2>
+          <span className="text-sm text-gray-500">{filteredTasks.length} tarefas</span>
+        </div>
+        
+        <TaskFilter filters={filters} onFilterChange={handleFilterChange} />
+        
+        {filteredTasks.length === 0 ? (
+          <div className="text-center py-10 bg-gray-50 rounded-lg">
+            <p className="text-gray-500">Nenhuma tarefa encontrada com os filtros atuais.</p>
+          </div>
         ) : (
-          <div className="no-tasks">
-            <p>Nenhuma tarefa encontrada com os filtros atuais.</p>
+          <div className="task-grid">
+            {filteredTasks.map(task => (
+              <TaskItem 
+                key={task.id} 
+                task={task} 
+                onStatusChange={handleStatusChange} 
+                onDelete={handleDelete} 
+              />
+            ))}
           </div>
         )}
       </div>
-      
-      <style jsx>{`
-        .task-list {
-          padding: 16px;
-          width: 100%;
-        }
-        
-        .task-list-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 20px;
-        }
-        
-        .add-task-btn {
-          background-color: #4f46e5;
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-weight: 500;
-        }
-        
-        .task-filters {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-          margin-bottom: 24px;
-          align-items: center;
-        }
-        
-        .search-box {
-          flex: 1;
-          min-width: 200px;
-        }
-        
-        .search-box input {
-          width: 100%;
-          padding: 8px 12px;
-          border: 1px solid #e2e8f0;
-          border-radius: 4px;
-        }
-        
-        .filter-group {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-        
-        .filter-group select {
-          padding: 8px 12px;
-          border: 1px solid #e2e8f0;
-          border-radius: 4px;
-          background-color: white;
-        }
-        
-        .tasks-container {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 16px;
-        }
-        
-        .task-card {
-          background-color: white;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-          padding: 16px;
-          display: flex;
-          flex-direction: column;
-          border-top: 3px solid #e2e8f0;
-        }
-        
-        .task-card.priority-high {
-          border-top-color: #ef4444;
-        }
-        
-        .task-card.priority-medium {
-          border-top-color: #f59e0b;
-        }
-        
-        .task-card.priority-low {
-          border-top-color: #10b981;
-        }
-        
-        .task-header {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 12px;
-        }
-        
-        .task-title {
-          font-weight: 600;
-          font-size: 16px;
-        }
-        
-        .delete-btn {
-          background: none;
-          border: none;
-          cursor: pointer;
-          font-size: 16px;
-          opacity: 0.7;
-          transition: opacity 0.2s;
-        }
-        
-        .delete-btn:hover {
-          opacity: 1;
-        }
-        
-        .task-description {
-          font-size: 14px;
-          color: #64748b;
-          margin-bottom: 12px;
-        }
-        
-        .task-meta {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-          margin-bottom: 12px;
-        }
-        
-        .meta-label {
-          font-size: 12px;
-          color: #64748b;
-          margin-right: 4px;
-        }
-        
-        .status-badge {
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: 500;
-          border: none;
-          cursor: pointer;
-        }
-        
-        .status-todo {
-          background-color: #f1f5f9;
-          color: #475569;
-        }
-        
-        .status-in_progress {
-          background-color: #dbeafe;
-          color: #1d4ed8;
-        }
-        
-        .status-done {
-          background-color: #dcfce7;
-          color: #15803d;
-        }
-        
-        .priority-badge {
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: 500;
-        }
-        
-        .priority-high {
-          background-color: #fee2e2;
-          color: #b91c1c;
-        }
-        
-        .priority-medium {
-          background-color: #fef3c7;
-          color: #b45309;
-        }
-        
-        .priority-low {
-          background-color: #d1fae5;
-          color: #047857;
-        }
-        
-        .task-footer {
-          display: flex;
-          justify-content: space-between;
-          margin-top: auto;
-          padding-top: 12px;
-          border-top: 1px solid #f1f5f9;
-          font-size: 12px;
-        }
-        
-        .task-assignee {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        
-        .assignee-avatar {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background-color: #f1f5f9;
-        }
-        
-        .task-dates {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-end;
-          color: #64748b;
-        }
-        
-        .due-date {
-          font-weight: 500;
-        }
-        
-        .no-tasks {
-          grid-column: 1 / -1;
-          text-align: center;
-          padding: 40px;
-          color: #64748b;
-          background-color: #f8fafc;
-          border-radius: 8px;
-        }
-        
-        .add-task-form {
-          background-color: white;
-          border-radius: 8px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          padding: 20px;
-          margin-bottom: 24px;
-        }
-        
-        .add-task-form h3 {
-          margin-top: 0;
-          margin-bottom: 16px;
-          font-size: 18px;
-          color: #1e293b;
-        }
-        
-        .add-task-form input,
-        .add-task-form textarea,
-        .add-task-form select {
-          width: 100%;
-          padding: 8px 12px;
-          margin-bottom: 12px;
-          border: 1px solid #e2e8f0;
-          border-radius: 4px;
-          font-size: 14px;
-        }
-        
-        .add-task-form textarea {
-          min-height: 80px;
-          resize: vertical;
-        }
-        
-        .form-row {
-          display: flex;
-          gap: 12px;
-        }
-        
-        .form-group {
-          flex: 1;
-        }
-        
-        .form-group label {
-          display: block;
-          margin-bottom: 4px;
-          font-size: 14px;
-          color: #64748b;
-        }
-        
-        .form-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: 8px;
-          margin-top: 16px;
-        }
-        
-        .cancel-btn,
-        .save-btn {
-          padding: 8px 16px;
-          border-radius: 4px;
-          font-weight: 500;
-          cursor: pointer;
-        }
-        
-        .cancel-btn {
-          background-color: #f1f5f9;
-          color: #475569;
-          border: none;
-        }
-        
-        .save-btn {
-          background-color: #4f46e5;
-          color: white;
-          border: none;
-        }
-        
-        @media (max-width: 768px) {
-          .form-row {
-            flex-direction: column;
-            gap: 4px;
-          }
-          
-          .task-filters {
-            flex-direction: column;
-            align-items: stretch;
-          }
-          
-          .filter-group {
-            width: 100%;
-          }
-          
-          .filter-group select {
-            flex: 1;
-          }
-        }
-      `}</style>
     </div>
   );
 };
-
-// Dados mockados para demonstração
-const mockTasks: Task[] = [
-  {
-    id: 'task-1',
-    title: 'Criar wireframes iniciais',
-    description: 'Desenvolver wireframes para as principais telas do site',
-    status: 'done',
-    priority: 'high',
-    assignee: {
-      id: 'user-1',
-      name: 'Maria Souza',
-      avatar: '👩'
-    },
-    dueDate: '2024-04-10T00:00:00Z',
-    createdAt: '2024-04-01T10:30:00Z',
-    tags: ['design']
-  },
-  {
-    id: 'task-2',
-    title: 'Implementar header responsivo',
-    status: 'done',
-    priority: 'medium',
-    assignee: {
-      id: 'user-3',
-      name: 'Pedro Santos',
-      avatar: '👨'
-    },
-    dueDate: '2024-04-12T00:00:00Z',
-    createdAt: '2024-04-02T09:15:00Z',
-    tags: ['frontend', 'responsive']
-  },
-  {
-    id: 'task-3',
-    title: 'Desenvolver API de autenticação',
-    description: 'Implementar endpoints para login, registro e recuperação de senha',
-    status: 'in_progress',
-    priority: 'high',
-    assignee: {
-      id: 'user-5',
-      name: 'Carlos Mendes',
-      avatar: '👨'
-    },
-    dueDate: '2024-04-20T00:00:00Z',
-    createdAt: '2024-04-05T14:20:00Z',
-    tags: ['backend', 'auth']
-  },
-  {
-    id: 'task-4',
-    title: 'Otimizar imagens para melhor performance',
-    status: 'todo',
-    priority: 'low',
-    assignee: {
-      id: 'user-4',
-      name: 'Ana Oliveira',
-      avatar: '👩'
-    },
-    createdAt: '2024-04-08T11:45:00Z',
-    tags: ['optimization']
-  },
-  {
-    id: 'task-5',
-    title: 'Escrever documentação de API',
-    description: 'Criar documentação detalhada para todos os endpoints da API',
-    status: 'todo',
-    priority: 'medium',
-    assignee: {
-      id: 'user-3',
-      name: 'Pedro Santos',
-      avatar: '👨'
-    },
-    dueDate: '2024-04-25T00:00:00Z',
-    createdAt: '2024-04-10T08:30:00Z',
-    tags: ['documentation', 'api']
-  }
-];
 
 export default TaskList; 
