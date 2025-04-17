@@ -241,18 +241,26 @@ Para atualizar a aplicação:
 
 A aplicação utiliza as seguintes portas por padrão:
 
-- **8800**: HTTP (NGINX)
-- **8443**: HTTPS (NGINX)
-- **4000**: API
-- **3000**: Serviço Plane
-- **3001**: Serviço Outline
-- **8080**: Serviço Web (Frontend)
+- **9080**: HTTP (NGINX)
+- **9443**: HTTPS (NGINX)
+- **9001**: API
+- **9002**: Serviço Plane
+- **9003**: Serviço Outline
+- **9004**: Serviço Web (Frontend)
+- **9432**: PostgreSQL
+- **9379**: Redis
 
-Para alterar as portas HTTP e HTTPS, defina as variáveis de ambiente:
+Para alterar as portas, defina as variáveis de ambiente correspondentes:
 
 ```bash
-HTTP_PORT=8800  # Porta para HTTP
-HTTPS_PORT=8443 # Porta para HTTPS
+HTTP_PORT=9080
+HTTPS_PORT=9443
+API_PORT=9001
+PLANE_PORT=9002
+OUTLINE_PORT=9003
+WEB_PORT=9004
+POSTGRES_PORT=9432
+REDIS_PORT=9379
 ```
 
 ### Execução
@@ -269,5 +277,5 @@ docker-compose -f docker/docker-compose.yml up -d
 
 Após a inicialização, acesse a aplicação em:
 
-- http://localhost:8800
-- https://localhost:8443 (quando SSL estiver configurado) 
+- http://localhost:9080
+- https://localhost:9443 (quando SSL estiver configurado) 

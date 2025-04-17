@@ -13,7 +13,7 @@ import { projectsRouter } from './routes/projects';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 9001;
 
 // Middlewares
 app.use(cors());

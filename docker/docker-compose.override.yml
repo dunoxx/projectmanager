@@ -3,8 +3,8 @@ version: '3.8'
 services:
   nginx:
     ports:
-      - "${HTTP_PORT:-8800}:80"
-      - "${HTTPS_PORT:-8443}:443"
+      - "${HTTP_PORT:-9080}:80"
+      - "${HTTPS_PORT:-9443}:443"
     environment:
       - VIRTUAL_HOST=${DOMAIN:-localhost}
       - LETSENCRYPT_HOST=${DOMAIN:-localhost}
@@ -14,8 +14,18 @@ services:
     environment:
       - NODE_ENV=production
       - LOG_LEVEL=info
+      - PORT=${API_PORT:-9001}
     
   web:
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=https://${DOMAIN:-localhost}:${HTTPS_PORT:-8443}/api 
+      - PORT=${WEB_PORT:-9004}
+      - NEXT_PUBLIC_API_URL=https://${DOMAIN:-localhost}:${HTTPS_PORT:-9443}/api
+      
+  plane:
+    environment:
+      - PORT=${PLANE_PORT:-9002}
+      
+  outline:
+    environment:
+      - PORT=${OUTLINE_PORT:-9003} 

@@ -20,10 +20,11 @@ COPY . .
 RUN npm run build
 
 # Configurar para usar o banco de dados corretamente
-ENV DATABASE_URL="postgresql://postgres:postgres@postgres:5432/projectmanager"
+ENV DATABASE_URL="postgresql://postgres:postgres@postgres:9432/projectmanager"
+ENV PORT=9001
 
 # Expor porta da API
-EXPOSE 3001
+EXPOSE 9001
 
 # Comando para iniciar a aplicação
 CMD ["sh", "-c", "npx prisma migrate deploy && npm start"] 

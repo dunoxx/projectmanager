@@ -20,6 +20,7 @@ ENV NODE_ENV=production
 ENV NEXT_PUBLIC_API_URL=/api
 ENV NEXT_PUBLIC_PLANE_URL=/plane
 ENV NEXT_PUBLIC_OUTLINE_URL=/outline
+ENV PORT 9004
 
 # Compilar a aplicação
 RUN npm run build
@@ -41,7 +42,7 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
 # Expor porta do frontend
-EXPOSE 3000
+EXPOSE 9004
 
 # Comando para iniciar a aplicação com o servidor standalone
 CMD ["node", "server.js"] 
