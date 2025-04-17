@@ -6,7 +6,7 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++ bash
 
 # Copiar arquivos de dependências
-COPY package.json yarn.lock ./
+COPY package.json ./
 
 # Instalar dependências
 RUN yarn install

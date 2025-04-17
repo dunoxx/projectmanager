@@ -24,13 +24,15 @@ WORKDIR /app
 
 # Copiar dependências e arquivos de build
 COPY --from=builder /app/package.json ./
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
 
 # Instalar apenas dependências de produção
 RUN yarn install --production
 
 # Expor a porta
-EXPOSE 4000
+EXPOSE 8080
 
 # Comando para iniciar o serviço
-CMD ["node", "dist/index.js"] 
+CMD ["yarn", "start"] 
