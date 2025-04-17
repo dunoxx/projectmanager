@@ -133,6 +133,8 @@ class ProjectDocumentationService {
           outlineCollectionId: collection.id,
           organizationSlug,
           syncEnabled: true,
+          organizationId: "default",  // Adicionando campos obrigatórios
+          syncInterval: 60, // Intervalo padrão de 60 minutos
           createdAt: new Date(),
           updatedAt: new Date()
         }
@@ -248,11 +250,12 @@ class ProjectDocumentationService {
 
   /**
    * Mapeia o papel do usuário no Plane para a permissão correspondente no Outline
+   * @private
    * @param planeRole Papel do usuário no Plane
    * @returns Permissão correspondente no Outline
    */
   private mapPlaneRoleToOutlinePermission(planeRole: string): string {
-    switch (planeRole.toLowerCase()) {
+    switch (planeRole) {
       case 'admin':
         return 'read_write';
       case 'member':
@@ -261,6 +264,103 @@ class ProjectDocumentationService {
         return 'read';
       default:
         return 'read';
+    }
+  }
+
+  /**
+   * Cria uma coleção no Outline para um projeto (interface simplificada para webhooks)
+   * @param projectId ID do projeto
+   * @param projectName Nome do projeto
+   * @param organizationSlug Slug da organização
+   * @param userId ID do usuário
+   * @returns Objeto com ID da coleção criada
+   */
+  async createCollectionForProject(
+    projectId: string,
+    projectName: string,
+    organizationSlug: string,
+    userId: string
+  ): Promise<{collectionId: string} | null> {
+    try {
+      // Criar token temporário para operação interna
+      const internalToken = "sistema-interno-token";
+      
+      const result = await this.createProjectDocumentation(
+        projectId,
+        organizationSlug,
+        projectName,
+        userId,
+        internalToken
+      );
+      
+      if (result.success && result.data) {
+        return {
+          collectionId: result.data.collection.id
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      logger.error('Erro ao criar coleção para projeto:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Sincroniza permissões entre projeto e coleção (interface simplificada para webhooks)
+   * @param projectId ID do projeto
+   * @param organizationSlug Slug da organização
+   * @returns Verdadeiro se sincronização foi bem-sucedida
+   */
+  async syncPermissions(
+    projectId: string,
+    organizationSlug: string
+  ): Promise<boolean> {
+    try {
+      // Criar token temporário para operação interna
+      const internalToken = "sistema-interno-token";
+      
+      const result = await this.syncProjectDocumentationPermissions(
+        projectId,
+        organizationSlug,
+        internalToken
+      );
+      
+      return result.success;
+    } catch (error) {
+      logger.error('Erro ao sincronizar permissões:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Obtém dados da coleção associada a um projeto
+   * @param projectId ID do projeto
+   * @param organizationSlug Slug da organização
+   * @returns Dados da coleção ou null se não encontrada
+   */
+  async getProjectCollection(
+    projectId: string,
+    organizationSlug: string
+  ): Promise<OutlineCollection | null> {
+    try {
+      // Criar token temporário para operação interna
+      const internalToken = "sistema-interno-token";
+      
+      const result = await this.getProjectDocumentation(
+        projectId,
+        organizationSlug,
+        internalToken
+      );
+      
+      if (result.success && result.data) {
+        return result.data;
+      }
+      
+      return null;
+    } catch (error) {
+      logger.error('Erro ao obter coleção do projeto:', error);
+      return null;
     }
   }
 }

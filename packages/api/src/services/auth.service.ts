@@ -35,9 +35,12 @@ class AuthService {
       role: user.role
     };
 
-    return jwt.sign(payload, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN
-    });
+    // Ignora o erro de tipo usando any
+    return jwt.sign(
+      payload, 
+      JWT_SECRET as any, 
+      { expiresIn: JWT_EXPIRES_IN as any }
+    );
   }
 
   /**

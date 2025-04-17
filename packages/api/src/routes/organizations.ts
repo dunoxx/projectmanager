@@ -127,7 +127,9 @@ organizationsRouter.post('/', authenticate, (req: Request, res: Response) => {
   const newOrganization: Organization = {
     id: Date.now().toString(),
     name,
+    slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
     description: description || '',
+    hasOutlineIntegration: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     members: [
