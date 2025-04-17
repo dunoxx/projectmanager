@@ -35,22 +35,13 @@ ENV NEXT_PUBLIC_API_URL=/api
 ENV NEXT_PUBLIC_PLANE_URL=/plane
 ENV NEXT_PUBLIC_OUTLINE_URL=/outline
 
-# Criar diretório public necessário
-RUN mkdir -p public
-
 # Copiar apenas arquivos necessários da etapa de build
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/next.config.js ./
-# Tratar o caso da pasta public vazia ou inexistente 
-RUN mkdir -p ./public
-COPY --from=builder /app/public/ ./public/
-COPY --from=builder /app/.next ./.next
-
-# Instalar apenas dependências de produção
-RUN npm ci --only=production
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
 
 # Expor porta do frontend
 EXPOSE 3000
 
-# Comando para iniciar a aplicação
-CMD ["npm", "start"] 
+# Comando para iniciar a aplicação com o servidor standalone
+CMD ["node", "server.js"] 

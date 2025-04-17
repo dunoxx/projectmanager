@@ -45,7 +45,7 @@ services:
     networks:
       - app-network
     command: >
-      sh -c "yarn db:migrate && yarn db:seed && yarn start"
+      sh -c "npx prisma generate && npx prisma migrate deploy && npm run db:seed && npm start"
     labels:
       - "easypanel.publish=true"
       - "easypanel.prefix=/api"
