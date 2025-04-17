@@ -1,5 +1,10 @@
 import axios from 'axios';
 import { logger } from '../utils/logger';
+import prisma from './prisma';
+import { IntegrationConfig, OutlineCollection, ApiResponse } from '../types';
+
+const OUTLINE_API_URL = process.env.OUTLINE_URL || 'http://outline:3001/api';
+const PLANE_API_URL = process.env.PLANE_URL || 'http://plane:3000/api';
 
 /**
  * Interface para o mapeamento entre projetos do Plane e collections do Outline
@@ -14,325 +19,249 @@ interface ProjectDocumentationMapping {
 }
 
 /**
- * Serviço responsável pela integração entre projetos do Plane e collections do Outline
+ * Serviço responsável por gerenciar a integração entre projetos do Plane
+ * e coleções de documentação no Outline
  */
 class ProjectDocumentationService {
-  private planeApiUrl: string;
-  private outlineApiUrl: string;
-  private jwtSecret: string;
-
-  constructor() {
-    this.planeApiUrl = process.env.PLANE_URL || 'http://plane:3000';
-    this.outlineApiUrl = process.env.OUTLINE_URL || 'http://outline:3001';
-    this.jwtSecret = process.env.JWT_SECRET || 'devsecretchangethisinproduction';
-  }
-
   /**
-   * Cria uma nova collection no Outline quando um projeto é criado no Plane
+   * Obtém a documentação associada a um projeto específico
    * @param projectId ID do projeto no Plane
-   * @param projectName Nome do projeto
-   * @param organizationSlug Slug da organização/workspace no Plane
-   * @param userId ID do usuário que criou o projeto
+   * @param organizationSlug Slug da organização
+   * @param token Token de autenticação
+   * @returns Dados da coleção do Outline associada ao projeto
    */
-  async createCollectionForProject(
+  async getProjectDocumentation(
     projectId: string,
-    projectName: string,
     organizationSlug: string,
-    userId: string
-  ): Promise<ProjectDocumentationMapping | null> {
+    token: string
+  ): Promise<ApiResponse<OutlineCollection>> {
     try {
-      logger.info(`Criando collection no Outline para o projeto ${projectName} (${projectId})`);
+      // Buscar configuração de integração existente
+      const integration = await prisma.integrationConfig.findFirst({
+        where: {
+          planeProjectId: projectId,
+          organizationSlug
+        }
+      });
 
-      // 1. Buscar detalhes do projeto no Plane para garantir que existe
-      const projectDetails = await this.getProjectDetails(projectId, organizationSlug);
-      if (!projectDetails) {
-        throw new Error(`Projeto ${projectId} não encontrado`);
+      if (!integration) {
+        return {
+          success: false,
+          message: 'Documentação não encontrada para este projeto'
+        };
       }
 
-      // 2. Criar uma nova collection no Outline
-      const collectionData = {
-        name: `${projectName} Docs`,
-        description: `Documentação para o projeto ${projectName}`,
-        color: projectDetails.color || '#4F46E5',
-        private: true,
-        permission: 'read_write',
-        // Metadados adicionais para vincular à estrutura do Plane
-        metadata: {
-          planeProjectId: projectId,
-          planeOrganizationSlug: organizationSlug
-        }
-      };
-
-      const collectionResponse = await axios.post(
-        `${this.outlineApiUrl}/api/collections`,
-        collectionData,
+      // Buscar dados da coleção no Outline
+      const response = await axios.get(
+        `${OUTLINE_API_URL}/collections/${integration.outlineCollectionId}`,
         {
           headers: {
-            Authorization: `Bearer ${this.generateServiceToken(userId)}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         }
       );
 
-      const collectionId = collectionResponse.data.id;
-
-      // 3. Salvar o mapeamento entre o projeto e a collection
-      const mapping = await this.saveProjectCollectionMapping(
-        projectId,
-        collectionId,
-        organizationSlug
-      );
-
-      // 4. Criar documento inicial de boas-vindas na collection
-      await this.createWelcomeDocument(collectionId, projectName, userId);
-
-      logger.info(`Collection ${collectionId} criada com sucesso para o projeto ${projectId}`);
-      return mapping;
-    } catch (error) {
-      logger.error('Erro ao criar collection para o projeto:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Busca detalhes de um projeto no Plane
-   */
-  private async getProjectDetails(projectId: string, organizationSlug: string): Promise<any> {
-    try {
-      const response = await axios.get(
-        `${this.planeApiUrl}/api/workspaces/${organizationSlug}/projects/${projectId}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            // Usando autenticação de serviço interno
-            'X-Service-Token': this.generateInternalServiceToken()
-          }
-        }
-      );
-      return response.data;
-    } catch (error) {
-      logger.error('Erro ao buscar detalhes do projeto:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Salva o mapeamento entre projeto e collection no banco de dados
-   */
-  private async saveProjectCollectionMapping(
-    projectId: string,
-    collectionId: string,
-    organizationSlug: string
-  ): Promise<ProjectDocumentationMapping> {
-    // Aqui, você usaria seu ORM/banco de dados para salvar o registro
-    // Este é um exemplo simplificado, sem persistência real
-    const mapping: ProjectDocumentationMapping = {
-      id: `map_${Date.now()}`,
-      projectId,
-      collectionId,
-      organizationSlug,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    // Em uma implementação real:
-    // return await db.projectDocumentationMappings.create(mapping);
-
-    return mapping;
-  }
-
-  /**
-   * Cria um documento inicial de boas-vindas na collection
-   */
-  private async createWelcomeDocument(
-    collectionId: string,
-    projectName: string,
-    userId: string
-  ): Promise<void> {
-    try {
-      const welcomeDocData = {
-        title: 'Bem-vindo à Documentação',
-        text: `# Bem-vindo à Documentação do ${projectName}
-
-Esta é a área de documentação do seu projeto. Aqui você pode:
-
-- Criar e organizar documentos
-- Colaborar com sua equipe
-- Manter toda a documentação do projeto centralizada
-
-## Começando
-
-1. Crie documentos para especificações, requisitos ou guias
-2. Organize-os em uma estrutura lógica
-3. Compartilhe com sua equipe
-
-Boa documentação!`,
-        collectionId,
-        publish: true
+      return {
+        success: true,
+        data: response.data
       };
+    } catch (error: any) {
+      logger.error('Erro ao buscar documentação do projeto:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Erro ao buscar documentação'
+      };
+    }
+  }
 
-      await axios.post(`${this.outlineApiUrl}/api/documents`, welcomeDocData, {
-        headers: {
-          Authorization: `Bearer ${this.generateServiceToken(userId)}`,
-          'Content-Type': 'application/json'
+  /**
+   * Cria uma nova coleção de documentação para um projeto
+   * @param projectId ID do projeto no Plane
+   * @param organizationSlug Slug da organização
+   * @param projectName Nome do projeto
+   * @param userId ID do usuário que está criando a documentação
+   * @param token Token de autenticação
+   * @returns Dados da coleção criada e configuração de integração
+   */
+  async createProjectDocumentation(
+    projectId: string,
+    organizationSlug: string,
+    projectName: string,
+    userId: string,
+    token: string
+  ): Promise<ApiResponse<{collection: OutlineCollection, integration: IntegrationConfig}>> {
+    try {
+      // Verificar se já existe integração para este projeto
+      const existingIntegration = await prisma.integrationConfig.findFirst({
+        where: {
+          planeProjectId: projectId,
+          organizationSlug
         }
       });
-    } catch (error) {
-      logger.error('Erro ao criar documento de boas-vindas:', error);
-    }
-  }
 
-  /**
-   * Gera um token JWT para autenticação de serviço
-   */
-  private generateServiceToken(userId: string): string {
-    // Em uma implementação real, você usaria uma biblioteca JWT
-    // para assinar um token com o userId e outras claims
-    
-    // Exemplo simplificado, sem implementação real:
-    return `dummy_token_for_user_${userId}`;
-    
-    // Implementação real seria algo como:
-    // return jwt.sign({ userId, serviceRequest: true }, this.jwtSecret, { expiresIn: '1h' });
-  }
-
-  /**
-   * Gera um token para comunicação interna entre serviços
-   */
-  private generateInternalServiceToken(): string {
-    // Token para comunicação entre serviços
-    return `internal_service_token`;
-    
-    // Implementação real seria algo como:
-    // return jwt.sign({ service: 'api-integration', internal: true }, this.jwtSecret, { expiresIn: '1h' });
-  }
-
-  /**
-   * Busca a collection do Outline associada a um projeto
-   */
-  async getProjectCollection(projectId: string, organizationSlug: string): Promise<any> {
-    try {
-      // Em uma implementação real, você buscaria isso do banco de dados
-      // const mapping = await db.projectDocumentationMappings.findOne({
-      //   where: { projectId, organizationSlug }
-      // });
-      
-      // Simulação:
-      const mapping = { collectionId: null };
-
-      if (!mapping || !mapping.collectionId) {
-        return null;
+      if (existingIntegration) {
+        return {
+          success: false,
+          message: 'Este projeto já possui documentação associada'
+        };
       }
 
-      // Buscar os detalhes da collection no Outline
-      const response = await axios.get(
-        `${this.outlineApiUrl}/api/collections/${mapping.collectionId}`,
+      // Criar uma nova coleção no Outline
+      const collectionResponse = await axios.post(
+        `${OUTLINE_API_URL}/collections`,
+        {
+          name: `Documentação: ${projectName}`,
+          description: `Documentação oficial do projeto ${projectName}`,
+          color: '#4F46E5', // Cor padrão (índigo)
+          permission: 'read_write' // Permissão padrão
+        },
         {
           headers: {
-            'Content-Type': 'application/json',
-            'X-Service-Token': this.generateInternalServiceToken()
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         }
       );
 
-      return response.data;
-    } catch (error) {
-      logger.error('Erro ao buscar collection do projeto:', error);
-      return null;
+      const collection = collectionResponse.data;
+
+      // Criar a integração no banco de dados
+      const integration = await prisma.integrationConfig.create({
+        data: {
+          planeProjectId: projectId,
+          outlineCollectionId: collection.id,
+          organizationSlug,
+          syncEnabled: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      });
+
+      // Criar documento inicial com template básico
+      await axios.post(
+        `${OUTLINE_API_URL}/documents`,
+        {
+          title: 'Bem-vindo à Documentação',
+          text: `# Bem-vindo à Documentação do Projeto ${projectName}\n\nEste é o ponto de partida para a documentação do seu projeto. Aqui você pode:\n\n- Descrever a visão geral do projeto\n- Adicionar especificações técnicas\n- Incluir guias de usuário\n- Documentar APIs e integrações\n\n## Próximos Passos\n\n1. Edite este documento para refletir as necessidades do seu projeto\n2. Crie documentos adicionais organizados por tópicos\n3. Compartilhe a documentação com sua equipe`,
+          collectionId: collection.id,
+          publish: true
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      return {
+        success: true,
+        data: {
+          collection,
+          integration
+        }
+      };
+    } catch (error: any) {
+      logger.error('Erro ao criar documentação para o projeto:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Erro ao criar documentação'
+      };
     }
   }
 
   /**
-   * Sincroniza permissões entre o projeto do Plane e a collection do Outline
+   * Sincroniza as permissões entre o projeto do Plane e a coleção do Outline
+   * @param projectId ID do projeto no Plane
+   * @param organizationSlug Slug da organização
+   * @param token Token de autenticação
+   * @returns Status da sincronização
    */
-  async syncPermissions(
+  async syncProjectDocumentationPermissions(
     projectId: string,
-    organizationSlug: string
-  ): Promise<boolean> {
+    organizationSlug: string,
+    token: string
+  ): Promise<ApiResponse<{message: string}>> {
     try {
-      // 1. Buscar permissões do projeto no Plane
-      const planePermissions = await this.getProjectPermissions(projectId, organizationSlug);
-      if (!planePermissions) {
-        throw new Error('Não foi possível obter permissões do projeto');
+      // Buscar configuração de integração existente
+      const integration = await prisma.integrationConfig.findFirst({
+        where: {
+          planeProjectId: projectId,
+          organizationSlug
+        }
+      });
+
+      if (!integration) {
+        return {
+          success: false,
+          message: 'Documentação não encontrada para este projeto'
+        };
       }
 
-      // 2. Buscar mapeamento do projeto para collection
-      // Em uma implementação real, você buscaria isso do banco de dados
-      // const mapping = await db.projectDocumentationMappings.findOne({
-      //   where: { projectId, organizationSlug }
-      // });
-      
-      // Simulação:
-      const mapping = { collectionId: null };
+      // Buscar membros do projeto no Plane
+      const membersResponse = await axios.get(
+        `${PLANE_API_URL}/workspaces/${organizationSlug}/projects/${projectId}/members`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      if (!mapping || !mapping.collectionId) {
-        throw new Error('Mapeamento projeto-collection não encontrado');
-      }
+      const projectMembers = membersResponse.data;
 
-      // 3. Para cada permissão no Plane, mapear para o Outline
-      for (const permission of planePermissions) {
-        const outlinePermission = this.mapPlaneRoleToOutlinePermission(permission.role);
-        
-        // 4. Atualizar permissão no Outline
+      // Atualizar permissões na coleção do Outline para cada membro
+      // Nota: Esta implementação varia conforme a API do Outline
+      // Este é um exemplo simplificado
+      for (const member of projectMembers) {
         await axios.post(
-          `${this.outlineApiUrl}/api/collections.memberships`,
+          `${OUTLINE_API_URL}/collections/${integration.outlineCollectionId}/memberships`,
           {
-            collectionId: mapping.collectionId,
-            userId: permission.userId,
-            permission: outlinePermission
+            userId: member.userId,
+            permission: this.mapPlaneRoleToOutlinePermission(member.role)
           },
           {
             headers: {
-              'Content-Type': 'application/json',
-              'X-Service-Token': this.generateInternalServiceToken()
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
             }
           }
         );
       }
 
-      logger.info(`Permissões sincronizadas com sucesso para o projeto ${projectId}`);
-      return true;
-    } catch (error) {
-      logger.error('Erro ao sincronizar permissões:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Busca permissões de um projeto no Plane
-   */
-  private async getProjectPermissions(projectId: string, organizationSlug: string): Promise<any[]> {
-    try {
-      const response = await axios.get(
-        `${this.planeApiUrl}/api/workspaces/${organizationSlug}/projects/${projectId}/members`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Service-Token': this.generateInternalServiceToken()
-          }
+      return {
+        success: true,
+        data: {
+          message: 'Permissões sincronizadas com sucesso'
         }
-      );
-      return response.data;
-    } catch (error) {
-      logger.error('Erro ao buscar permissões do projeto:', error);
-      return [];
+      };
+    } catch (error: any) {
+      logger.error('Erro ao sincronizar permissões:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Erro ao sincronizar permissões'
+      };
     }
   }
 
   /**
-   * Mapeia um papel (role) do Plane para uma permissão do Outline
+   * Mapeia o papel do usuário no Plane para a permissão correspondente no Outline
+   * @param planeRole Papel do usuário no Plane
+   * @returns Permissão correspondente no Outline
    */
   private mapPlaneRoleToOutlinePermission(planeRole: string): string {
-    // Mapeamento de papéis do Plane para permissões do Outline
-    const roleMapping: Record<string, string> = {
-      'Admin': 'admin',
-      'Member': 'read_write',
-      'Viewer': 'read',
-      'Owner': 'admin',
-      'Guest': 'read'
-    };
-
-    return roleMapping[planeRole] || 'read';
+    switch (planeRole.toLowerCase()) {
+      case 'admin':
+        return 'read_write';
+      case 'member':
+        return 'read_write';
+      case 'viewer':
+        return 'read';
+      default:
+        return 'read';
+    }
   }
 }
 

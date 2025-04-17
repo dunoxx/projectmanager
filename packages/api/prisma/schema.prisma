@@ -1,0 +1,122 @@
+// Schema para o banco de dados da aplicação
+// Define os modelos de dados e relacionamentos
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo para usuários da aplicação
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  organizations OrganizationMember[]
+}
+
+// Modelo para organizações
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  members     OrganizationMember[]
+  projects    Project[]
+  integrations IntegrationConfig[]
+}
+
+// Relacionamento entre usuários e organizações
+model OrganizationMember {
+  id             String   @id @default(uuid())
+  userId         String
+  organizationId String
+  role           String   @default("member") // admin, member, viewer
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relacionamentos
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+// Modelo para projetos
+model Project {
+  id             String   @id @default(uuid())
+  name           String
+  slug           String
+  description    String?
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relacionamentos
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      ProjectMember[]
+  tasks        Task[]
+  integrations IntegrationConfig[]
+
+  @@unique([organizationId, slug])
+}
+
+// Relacionamento entre usuários e projetos
+model ProjectMember {
+  id        String   @id @default(uuid())
+  userId    String
+  projectId String
+  role      String   @default("member") // admin, member, viewer
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+}
+
+// Modelo para tarefas
+model Task {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  status      String    @default("todo") // todo, in_progress, done
+  priority    String?   @default("medium") // low, medium, high
+  dueDate     DateTime?
+  assigneeId  String?
+  projectId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relacionamentos
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// Modelo para configurações de integração entre Plane e Outline
+model IntegrationConfig {
+  id                 String   @id @default(uuid())
+  planeProjectId     String
+  outlineCollectionId String
+  organizationSlug   String
+  syncEnabled        Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relacionamentos
+  project     Project     @relation(fields: [planeProjectId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationSlug], references: [slug], onDelete: Cascade)
+
+  @@unique([planeProjectId, organizationSlug])
+} 

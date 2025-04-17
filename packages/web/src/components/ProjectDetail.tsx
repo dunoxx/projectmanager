@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import DocumentationTab from './DocumentationTab';
+import TaskList from './TaskList';
+import MembersTab from './MembersTab';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -169,13 +171,13 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
         {activeTab === 'tasks' && (
           <div className="tasks-tab">
-            <p className="placeholder-message">Conteúdo da aba de Tarefas será implementado em breve.</p>
+            <TaskList projectId={projectId} />
           </div>
         )}
 
         {activeTab === 'members' && (
           <div className="members-tab">
-            <p className="placeholder-message">Conteúdo da aba de Membros será implementado em breve.</p>
+            <MembersTab projectId={projectId} />
           </div>
         )}
 
@@ -465,16 +467,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
           margin: 0;
         }
 
-        .placeholder-message {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          min-height: 200px;
-          color: #94a3b8;
-          font-style: italic;
-        }
-
-        .docs-tab {
+        .tasks-tab, .members-tab, .docs-tab {
           height: 600px;
         }
 

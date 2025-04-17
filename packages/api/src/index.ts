@@ -1,22 +1,41 @@
-console.log('API do Project Manager iniciando...');
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { authRouter } from './routes/auth';
+import { planeRoutes } from './routes/plane';
+import { outlineRoutes } from './routes/outline';
+import { integrationRoutes } from './routes/integration';
+import { documentationRoutes } from './routes/documentation';
+import { organizationsRouter } from './routes/organizations';
+import { projectsRouter } from './routes/projects';
 
-// Servidor básico com HTTP nativo
-const http = require('http');
+// Carrega as variáveis de ambiente
+dotenv.config();
 
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  
-  const response = {
-    status: 'ok',
-    message: 'API do Project Manager está funcionando!',
-    environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0'
-  };
-  
-  res.end(JSON.stringify(response));
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middlewares
+app.use(cors());
+app.use(express.json());
+
+// Rotas
+app.use('/api/auth', authRouter);
+app.use('/api/plane', planeRoutes);
+app.use('/api/outline', outlineRoutes);
+app.use('/api/integration', integrationRoutes);
+app.use('/api/documentation', documentationRoutes);
+app.use('/api/organizations', organizationsRouter);
+app.use('/api/projects', projectsRouter);
+
+// Rota de saúde
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'API está funcionando corretamente' });
 });
 
-const port = process.env.PORT || 4000;
-server.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
-}); 
+// Inicia o servidor
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});
+
+export default app; 

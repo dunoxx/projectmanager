@@ -1,65 +1,130 @@
-# Project Manager - Integração Plane + Outline
+# Project Manager
 
-Esta aplicação unifica o sistema de gerenciamento de projetos [Plane.so](https://plane.so) com a plataforma de documentação colaborativa [Outline](https://getoutline.com), permitindo o gerenciamento completo de projetos, tarefas e documentação em um único lugar.
+Uma solução integrada de gerenciamento de projetos que une a gestão de tarefas do Plane com a documentação colaborativa do Outline.
 
-## Funcionalidades Principais
+## Visão Geral
 
-- **Estrutura unificada com organizações do Plane**
-  - Organizações são criadas no Plane
-  - Equipes, papéis e autenticação são centralizados
+Este projeto implementa uma integração entre [Plane](https://plane.so) e [Outline](https://www.getoutline.com/) para fornecer uma experiência completa de gerenciamento de projetos, permitindo que as equipes tenham acesso à documentação diretamente dentro da interface de gerenciamento de tarefas.
 
-- **Projetos com documentação integrada**
-  - Quando um projeto é criado, cria-se automaticamente:
-    - Uma collection no Outline com o nome do projeto
-    - Uma aba lateral `📄 Documentation` no projeto
-    - Interface do Outline embutida via iframe/integração dentro do projeto
+### Características Principais
 
-- **Documentação Embutida**
-  - Toda funcionalidade do Outline disponível na aba Documentation:
-    - Collections, documentos, hierarquia
-    - Editor colaborativo 
-    - Histórico de versões
-    - Permissões por documento
-    - Templates
-    - Busca interna
+- Visualização de documentação do Outline dentro da interface do Plane
+- Criação automática de áreas de documentação para novos projetos
+- Sincronização de permissões entre projetos e documentação
+- Interface unificada com autenticação única
+- Experiência visual consistente entre as plataformas
 
-- **Autenticação e Permissões Unificadas**
-  - Login e autenticação únicos (JWT compartilhado/GoTrue)
-  - Usuários geridos pelo Plane
-  - Papéis refletidos entre Plane e Outline:
-    - `Viewer` → Leitor no Outline
-    - `Editor` → Editor no Outline
-    - `Owner/Admin` → Admin da collection
+## Arquitetura
 
-## Estrutura do Projeto
+O projeto é organizado como um monorepo com a seguinte estrutura:
 
 ```
-project-manager/
-├── docs/               # Documentação do projeto
-├── docker/             # Arquivos Docker para desenvolvimento e produção
-├── infra/              # Configurações de infraestrutura
-└── packages/           # Pacotes do monorepo
-    ├── api/            # Backend da aplicação integrada
-    ├── common/         # Bibliotecas compartilhadas
-    ├── web/            # Frontend da aplicação integrada
-    └── outline/        # Adaptações do Outline para integração
+projectmanager/
+├── packages/
+│   ├── api/              # Backend Node.js/Express
+│   ├── web/              # Frontend React/Next.js
+│   └── shared/           # Código compartilhado
+└── docker/               # Configurações Docker
 ```
 
-## Stack Tecnológica
+## Tecnologias Utilizadas
 
-- **Frontend**: React (Next.js)
-- **Backend**: Node.js (Express)
-- **Autenticação**: JWT compartilhado ou GoTrue
-- **Databases**: PostgreSQL
-- **Comunicação**: REST/GraphQL
-- **Deploy**: Docker Compose
+- **Backend**: Node.js, Express, Prisma ORM, PostgreSQL
+- **Frontend**: React, Next.js, TailwindCSS, ShadCN
+- **Infraestrutura**: Docker, Nginx
+- **Testes**: Jest, React Testing Library
 
-## Instalação e Desenvolvimento
+## Requisitos de Sistema
 
-Consulte o arquivo [INSTALL.md](./docs/INSTALL.md) para instruções detalhadas de configuração, instalação e desenvolvimento.
+- Node.js 16.x ou superior
+- PostgreSQL 14.x ou superior
+- Docker e Docker Compose (para desenvolvimento)
 
-## Licenças
+## Configuração do Ambiente de Desenvolvimento
 
-Este projeto respeita e segue as licenças dos projetos originais:
-- [Plane.so](https://github.com/makeplane/plane): AGPL-3.0
-- [Outline](https://github.com/outline/outline): BSL 1.1 
+### 1. Configuração do Banco de Dados
+
+```bash
+# Na pasta packages/api
+docker-compose up -d
+```
+
+Isso iniciará um servidor PostgreSQL na porta 5432 e PgAdmin na porta 5050.
+
+### 2. Configuração da API
+
+```bash
+# Na pasta packages/api
+npm install
+npm run prisma:generate
+npm run prisma:migrate
+npm run db:seed
+npm run dev
+```
+
+### 3. Configuração do Frontend
+
+```bash
+# Na pasta packages/web
+npm install
+npm run dev
+```
+
+Após configurar, a aplicação estará disponível em:
+- **Frontend**: http://localhost:3000
+- **API**: http://localhost:3001
+- **PgAdmin**: http://localhost:5050 (credenciais: admin@admin.com / admin)
+
+## Funcionalidades de Documentação
+
+### Visualizar Documentação de um Projeto
+
+A documentação de um projeto pode ser acessada pela aba "Documentação" na página do projeto.
+
+### Criar Documentação para um Projeto
+
+Se um projeto não tiver documentação, será exibido um botão para criar uma nova área de documentação.
+
+### Sincronizar Permissões
+
+As permissões entre o projeto no Plane e a coleção no Outline podem ser sincronizadas a qualquer momento pelo botão "Sincronizar Permissões" na interface.
+
+## Fluxo de Autenticação
+
+O sistema utiliza JWT para autenticação única entre as plataformas integradas. Quando um usuário acessa a documentação de um projeto, é gerada uma URL autenticada para o Outline que mantém o contexto da sessão.
+
+## Estrutura do Banco de Dados
+
+O sistema utiliza o Prisma como ORM para gerenciar o banco de dados PostgreSQL. Os principais modelos incluem:
+
+- `User`: Usuários do sistema
+- `Organization`: Organizações que agrupam projetos
+- `Project`: Projetos gerenciados pelo sistema
+- `Task`: Tarefas associadas a projetos
+- `IntegrationConfig`: Configurações de integração entre projetos e documentação
+
+## Testes
+
+Para executar os testes:
+
+```bash
+# Na pasta packages/api
+npm test
+
+# Na pasta packages/web
+npm test
+```
+
+## Contribuição
+
+Para contribuir com o projeto:
+
+1. Faça um fork deste repositório
+2. Crie uma branch para sua feature (`git checkout -b feature/nome-da-feature`)
+3. Commit suas mudanças (`git commit -m 'Adiciona nova feature'`)
+4. Push para a branch (`git push origin feature/nome-da-feature`)
+5. Abra um Pull Request
+
+## Licença
+
+Este projeto está licenciado sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes. 
