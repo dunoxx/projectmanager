@@ -2,11 +2,19 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json ./
+# Copiar arquivos de configuração do workspace
+COPY package.json pnpm-workspace.yaml turbo.json ./
+COPY apps/api/package.json ./apps/api/
+
+# Instalar pnpm e dependências
 RUN npm install -g pnpm
 RUN pnpm install
 
+# Copiar o resto dos arquivos
 COPY . .
+
+# Build da API
+WORKDIR /app/apps/api
 RUN pnpm build
 
 FROM node:18-alpine AS runner
