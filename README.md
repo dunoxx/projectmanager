@@ -233,4 +233,41 @@ Após a implantação bem-sucedida:
 Para atualizar a aplicação:
 1. Faça push das alterações para o repositório
 2. No painel do Easypanel, selecione o projeto
-3. Clique em "Rebuild" ou "Reconstruir" 
+3. Clique em "Rebuild" ou "Reconstruir"
+
+## Configuração
+
+### Portas
+
+A aplicação utiliza as seguintes portas por padrão:
+
+- **8800**: HTTP (NGINX)
+- **8443**: HTTPS (NGINX)
+- **4000**: API
+- **3000**: Serviço Plane
+- **3001**: Serviço Outline
+- **8080**: Serviço Web (Frontend)
+
+Para alterar as portas HTTP e HTTPS, defina as variáveis de ambiente:
+
+```bash
+HTTP_PORT=8800  # Porta para HTTP
+HTTPS_PORT=8443 # Porta para HTTPS
+```
+
+### Execução
+
+```bash
+# Copie o arquivo .env.example para .env
+cp .env.example .env
+
+# Inicie os serviços
+docker-compose -f docker/docker-compose.yml up -d
+```
+
+### Acesso
+
+Após a inicialização, acesse a aplicação em:
+
+- http://localhost:8800
+- https://localhost:8443 (quando SSL estiver configurado) 
