@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "npm install --no-save critters@0.0.20"
   },
   "dependencies": {
     "@types/node": "^18.19.86",
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.6",
     "@types/styled-components": "^5.1.26",
+    "critters": "^0.0.20",
     "eslint": "^8.40.0",
     "eslint-config-next": "^13.4.1"
   }

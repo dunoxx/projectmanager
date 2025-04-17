@@ -5,7 +5,7 @@ WORKDIR /app
 # Copiar arquivos de dependência
 COPY package*.json ./
 
-# Instalar dependências
+# Instalar todas as dependências (incluindo dev dependencies necessárias para build)
 RUN npm install
 
 # Criar diretório public se não existir
@@ -14,6 +14,10 @@ RUN mkdir -p public
 # Copiar o código fonte
 COPY . .
 
+# Definir variáveis de ambiente para o build
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
 # Compilar a aplicação
 RUN npm run build
 
@@ -21,6 +25,9 @@ RUN npm run build
 FROM node:18-alpine AS runner
 
 WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Criar diretório public necessário
 RUN mkdir -p public
@@ -32,7 +39,9 @@ COPY --from=builder /app/next.config.js ./
 RUN mkdir -p ./public
 COPY --from=builder /app/public/ ./public/
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
+
+# Instalar apenas dependências de produção
+RUN npm ci --only=production
 
 # Expor porta do frontend
 EXPOSE 3000

@@ -23,10 +23,19 @@ const nextConfig = {
   
   // Otimização de pacotes
   experimental: {
-    optimizeCss: true,
     scrollRestoration: true,
-    legacyBrowsers: false,
-    browsersListForSwc: true,
+  },
+  
+  // Desabilitar exportação estática para evitar erros no build
+  trailingSlash: true, // Adicionar trailing slash às URLs
+  
+  // Configuração para páginas dinâmicas
+  exportPathMap: async function() {
+    return {
+      '/': { page: '/' },
+      '/404': { page: '/404' },
+      '/500': { page: '/500' },
+    };
   },
   
   // Configuração de Headers para todos os paths
