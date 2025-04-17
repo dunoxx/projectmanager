@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  # Banco de dados PostgreSQL
+  postgres:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_MULTIPLE_DATABASES: projectmanager,outline
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # Redis para cache e sessões
+  redis:
+    image: redis:6-alpine
+    volumes:
+      - redis-data:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # Serviço da API integrada
+  api:
+    build:
+      context: ../packages/api
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/projectmanager
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 4000
+      PLANE_URL: http://plane:3000
+      OUTLINE_URL: http://outline:3001
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - internal
+
+  # Serviço Plane
+  plane:
+    build:
+      context: ../packages/plane
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/projectmanager
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3000
+      API_URL: http://api:4000
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+      - api
+    networks:
+      - internal
+
+  # Serviço Outline modificado
+  outline:
+    build:
+      context: ../packages/outline
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/outline
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3001
+      API_URL: http://api:4000
+      SECRET_KEY: ${SECRET_KEY}
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+      - api
+    networks:
+      - internal
+
+  # Frontend (UI)
+  web:
+    build:
+      context: ../packages/web
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      # URLs internas para a comunicação dentro da rede Docker
+      NEXT_PUBLIC_API_URL: /api
+      NEXT_PUBLIC_PLANE_URL: /
+      NEXT_PUBLIC_OUTLINE_URL: /docs
+    restart: always
+    depends_on:
+      - api
+      - plane
+      - outline
+    networks:
+      - internal
+
+  # Nginx como proxy reverso
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ../infra/nginx/projectmanager.conf:/etc/nginx/conf.d/default.conf
+      - ../infra/nginx/ssl:/etc/nginx/ssl
+      - static-data:/var/www/html
+    restart: always
+    depends_on:
+      - web
+      - api
+      - plane
+      - outline
+    networks:
+      - internal
+      - external
+
+volumes:
+  postgres-data:
+  redis-data:
+  static-data:
+
+networks:
+  internal:
+    internal: true
+  external:
+    driver: bridge 

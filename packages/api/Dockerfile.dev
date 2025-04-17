@@ -1,0 +1,21 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Instalar dependências globais
+RUN apk add --no-cache python3 make g++ bash
+
+# Copiar arquivos de dependências
+COPY package.json yarn.lock ./
+
+# Instalar dependências
+RUN yarn install
+
+# Copiar código fonte
+COPY . .
+
+# Expor a porta
+EXPOSE 4000
+
+# Comando para iniciar o serviço em modo de desenvolvimento
+CMD ["yarn", "dev"] 

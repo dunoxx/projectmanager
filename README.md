@@ -1,53 +1,65 @@
-# ProjectManager
+# Project Manager - Integração Plane + Outline
 
-Uma plataforma integrada que combina gerenciamento de projetos (Plane) com documentação colaborativa (Outline).
+Esta aplicação unifica o sistema de gerenciamento de projetos [Plane.so](https://plane.so) com a plataforma de documentação colaborativa [Outline](https://getoutline.com), permitindo o gerenciamento completo de projetos, tarefas e documentação em um único lugar.
 
-## Características Principais
+## Funcionalidades Principais
 
-- Gerenciamento completo de projetos
-- Documentação integrada por projeto
-- Sem restrições de uso - todas as funcionalidades disponíveis para todos os usuários
-- Fácil instalação via Easypanel
-- Interface unificada e intuitiva
+- **Estrutura unificada com organizações do Plane**
+  - Organizações são criadas no Plane
+  - Equipes, papéis e autenticação são centralizados
 
-## Requisitos
+- **Projetos com documentação integrada**
+  - Quando um projeto é criado, cria-se automaticamente:
+    - Uma collection no Outline com o nome do projeto
+    - Uma aba lateral `📄 Documentation` no projeto
+    - Interface do Outline embutida via iframe/integração dentro do projeto
 
-- Node.js 18+
-- PostgreSQL 14+
-- Redis
-- Docker (opcional, para instalação via Easypanel)
+- **Documentação Embutida**
+  - Toda funcionalidade do Outline disponível na aba Documentation:
+    - Collections, documentos, hierarquia
+    - Editor colaborativo 
+    - Histórico de versões
+    - Permissões por documento
+    - Templates
+    - Busca interna
 
-## Instalação via Easypanel
-
-1. Acesse seu painel Easypanel
-2. Adicione um novo projeto
-3. Selecione "GitHub" como fonte
-4. Cole a URL deste repositório
-5. O sistema irá configurar automaticamente todos os componentes necessários
-
-## Primeiro Acesso
-
-- Usuário padrão: admin
-- Senha padrão: admin
-- **Importante**: Altere a senha no primeiro acesso
+- **Autenticação e Permissões Unificadas**
+  - Login e autenticação únicos (JWT compartilhado/GoTrue)
+  - Usuários geridos pelo Plane
+  - Papéis refletidos entre Plane e Outline:
+    - `Viewer` → Leitor no Outline
+    - `Editor` → Editor no Outline
+    - `Owner/Admin` → Admin da collection
 
 ## Estrutura do Projeto
 
-- `/apps/web` - Frontend principal
-- `/apps/api` - Backend API
-- `/apps/docs` - Módulo de documentação (Outline)
-- `/packages` - Bibliotecas compartilhadas
-
-## Desenvolvimento
-
-```bash
-# Instalar dependências
-pnpm install
-
-# Iniciar ambiente de desenvolvimento
-pnpm dev
+```
+project-manager/
+├── docs/               # Documentação do projeto
+├── docker/             # Arquivos Docker para desenvolvimento e produção
+├── infra/              # Configurações de infraestrutura
+└── packages/           # Pacotes do monorepo
+    ├── api/            # Backend da aplicação integrada
+    ├── common/         # Bibliotecas compartilhadas
+    ├── web/            # Frontend da aplicação integrada
+    └── outline/        # Adaptações do Outline para integração
 ```
 
-## Licença
+## Stack Tecnológica
 
-MIT 
+- **Frontend**: React (Next.js)
+- **Backend**: Node.js (Express)
+- **Autenticação**: JWT compartilhado ou GoTrue
+- **Databases**: PostgreSQL
+- **Comunicação**: REST/GraphQL
+- **Deploy**: Docker Compose
+
+## Instalação e Desenvolvimento
+
+Consulte o arquivo [INSTALL.md](./docs/INSTALL.md) para instruções detalhadas de configuração, instalação e desenvolvimento.
+
+## Licenças
+
+Este projeto respeita e segue as licenças dos projetos originais:
+- [Plane.so](https://github.com/makeplane/plane): AGPL-3.0
+- [Outline](https://github.com/outline/outline): BSL 1.1 
