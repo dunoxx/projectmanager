@@ -3,7 +3,6 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15
-    container_name: projectmanager_postgres
     restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -11,22 +10,20 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: projectmanager
-    ports:
-      - "5432:5432"
-    networks:
-      - app-network
+    expose:
+      - "5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
 
   api:
     build:
       context: ./packages/api
       dockerfile: Dockerfile
-    image: projectmanager-api:latest
-    container_name: projectmanager_api
     restart: unless-stopped
     volumes:
       - api_data:/app/data
@@ -46,17 +43,11 @@ services:
       - app-network
     command: >
       sh -c "npx prisma generate && npx prisma migrate deploy && npm run db:seed && npm start"
-    labels:
-      - "easypanel.publish=true"
-      - "easypanel.prefix=/api"
-      - "easypanel.port=3001"
 
   web:
     build:
       context: ./packages/web
       dockerfile: Dockerfile
-    image: projectmanager-web:latest
-    container_name: projectmanager_web
     restart: unless-stopped
     volumes:
       - web_data:/app/data
@@ -71,41 +62,26 @@ services:
       - api
     networks:
       - app-network
-    labels:
-      - "easypanel.publish=true"
-      - "easypanel.port=3000"
 
   plane:
     build:
       context: ./packages/plane
       dockerfile: Dockerfile
-    image: projectmanager-plane:latest
-    container_name: projectmanager_plane
     restart: unless-stopped
     expose:
       - "3000"
     networks:
       - app-network
-    labels:
-      - "easypanel.publish=true"
-      - "easypanel.prefix=/plane"
-      - "easypanel.port=3000"
 
   outline:
     build:
       context: ./packages/outline
       dockerfile: Dockerfile
-    image: projectmanager-outline:latest
-    container_name: projectmanager_outline
     restart: unless-stopped
     expose:
       - "3001"
     networks:
       - app-network
-    labels:
-      - "easypanel.publish=true"
-      - "easypanel.prefix=/outline"
-      - "easypanel.port=3001"
 
 volumes:
   postgres_data:
