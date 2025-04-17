@@ -1,0 +1,27 @@
+# Configuração Easypanel
+project_name: projectmanager
+services:
+  web:
+    port: 3000
+    deploy: true
+    path: /
+    public: true
+  api:
+    port: 3001
+    deploy: true
+    path: /api
+    public: true
+  plane:
+    port: 3000
+    deploy: true
+    path: /plane
+    public: true
+  outline:
+    port: 3001
+    deploy: true
+    path: /outline
+    public: true
+  postgres:
+    port: 5432
+    deploy: true
+    public: false 

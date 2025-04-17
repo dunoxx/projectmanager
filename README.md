@@ -176,14 +176,9 @@ O Project Manager é composto por vários serviços:
 
 ## Instruções de Implantação
 
-### 1. Clone o Repositório
+### 1. Preparação para o Easypanel
 
-Clone o repositório do Project Manager:
-
-```bash
-git clone https://github.com/seu-usuario/projectmanager.git
-cd projectmanager
-```
+O Easypanel pode ter conflitos com a porta 80 ao tentar criar um container NGINX. Para evitar este problema, nosso arquivo docker-compose.yml já inclui uma definição especial de serviço NGINX que é efetivamente desabilitada.
 
 ### 2. Importe o Projeto no Easypanel
 
@@ -192,30 +187,39 @@ cd projectmanager
 3. Escolha a opção "Docker Compose"
 4. Selecione o repositório clonado
 5. Verifique se o arquivo docker-compose.yml está sendo reconhecido
+6. **IMPORTANTE**: Certifique-se que o Easypanel não esteja usando seu próprio container NGINX
 
-### 3. Configure o Domínio (Opcional)
+### 3. Configure o Roteamento no Easypanel
 
-Se deseja usar um domínio personalizado:
-1. Na configuração do projeto, defina o domínio desejado
-2. Certifique-se de que os registros DNS apontam para o servidor Easypanel
+Ao configurar o projeto no Easypanel:
 
-### 4. Inicie a Implantação
+1. Para cada serviço, verifique suas configurações de proxy
+2. Certifique-se de que os caminhos correspondam às nossas configurações Traefik:
+   - **web**: caminho `/` na porta `3000`
+   - **api**: caminho `/api` na porta `3001`
+   - **plane**: caminho `/plane` na porta `3000`
+   - **outline**: caminho `/outline` na porta `3001`
 
-1. Revise todas as configurações
-2. Clique em "Deploy" ou "Implantar"
-3. Aguarde a conclusão do processo
+### 4. Resolução de Problemas
 
-## Solução de Problemas
+Se você continuar encontrando o erro "Bind for 0.0.0.0:80 failed: port is already allocated", tente uma das seguintes soluções:
 
-Se encontrar o erro "port is already allocated":
-- Certifique-se de que a porta 80 está disponível no servidor
-- Verifique se não há outros serviços usando essa porta
+1. **Usando a UI do Easypanel**:
+   - Acesse o serviço NGINX no painel do Easypanel
+   - Remova explicitamente o serviço NGINX ou
+   - Altere sua porta de 80 para outra porta disponível
 
-Erros de conexão com o banco de dados:
-- Verifique se as credenciais do PostgreSQL estão corretas
-- Certifique-se de que o serviço postgres está em execução
+2. **Alternativamente, você pode usar a CLI do Docker**:
+   - Acesse o servidor via SSH
+   - Execute `docker ps` para listar os containers
+   - Identifique o container NGINX que está usando a porta 80
+   - Execute `docker stop [id_do_container]` para parar o container
 
-## Acessando a Aplicação
+3. **Definição de portas alternativas**:
+   - Se nada funcionar, modifique as configurações do Traefik no Easypanel
+   - Configure-o para usar portas alternativas em vez da porta 80
+
+### 5. Acessando a Aplicação
 
 Após a implantação bem-sucedida:
 

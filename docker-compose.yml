@@ -10,6 +10,8 @@ services:
       POSTGRES_DB: projectmanager
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    labels:
+      - "traefik.enable=false"
 
   api:
     build:
@@ -59,6 +61,16 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.outline.rule=PathPrefix(`/outline`)"
       - "traefik.http.services.outline.loadbalancer.server.port=3001"
+
+  # Serviço vazio para substituir o NGINX do Easypanel
+  nginx:
+    image: alpine:latest
+    command: ["sh", "-c", "echo 'NGINX desabilitado' && sleep infinity"]
+    restart: "no"
+    labels:
+      - "traefik.enable=false"
+    deploy:
+      replicas: 0
 
 volumes:
   postgres_data: 
