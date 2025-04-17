@@ -1,6 +1,7 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -11,7 +12,7 @@ const projectSchema = z.object({
 });
 
 // Middleware de autenticação
-const authenticate = async (req: any, res: any, next: any) => {
+const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) {
@@ -19,7 +20,7 @@ const authenticate = async (req: any, res: any, next: any) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    req.user = decoded;
+    req.user = decoded as any;
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Não autorizado' });
