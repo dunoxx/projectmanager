@@ -108,6 +108,35 @@ router.get('/collections/:collectionId/documents', authenticate, async (req: Req
   }
 });
 
+// Buscar conteúdo de um documento específico
+router.get('/documents/:documentId', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { documentId } = req.params;
+
+    // Chamar a API do Outline para obter o documento
+    const response = await axios.get(
+      `${OUTLINE_API_URL}/documents/${documentId}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${req.headers.authorization?.split(' ')[1]}`
+        }
+      }
+    );
+
+    return res.json({
+      success: true,
+      data: response.data
+    });
+  } catch (error: any) {
+    logger.error('Erro ao buscar conteúdo do documento no Outline:', error);
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.response?.data?.message || 'Erro ao comunicar com o Outline'
+    });
+  }
+});
+
 // Gerar URL de login único no Outline
 router.get('/auth-url', authenticate, (req: Request, res: Response) => {
   try {
@@ -184,6 +213,49 @@ router.post('/collections', authenticate, async (req: Request, res: Response) =>
     });
   } catch (error: any) {
     logger.error('Erro ao criar collection no Outline:', error);
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.response?.data?.message || 'Erro ao comunicar com o Outline'
+    });
+  }
+});
+
+// Criar um novo documento
+router.post('/documents', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { title, text, collectionId, parentDocumentId } = req.body;
+
+    if (!title || !text || !collectionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Título, conteúdo e ID da coleção são obrigatórios'
+      });
+    }
+
+    // Chamar a API do Outline para criar o documento
+    const response = await axios.post(
+      `${OUTLINE_API_URL}/documents`,
+      {
+        title,
+        text,
+        collectionId,
+        parentDocumentId: parentDocumentId || undefined,
+        publish: true
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${req.headers.authorization?.split(' ')[1]}`
+        }
+      }
+    );
+
+    return res.json({
+      success: true,
+      data: response.data
+    });
+  } catch (error: any) {
+    logger.error('Erro ao criar documento no Outline:', error);
     return res.status(error.response?.status || 500).json({
       success: false,
       error: error.response?.data?.message || 'Erro ao comunicar com o Outline'

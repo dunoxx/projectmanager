@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Spinner, Alert, Button } from './ui';
+import DocumentationTree from './DocumentationTree';
 
 interface DocumentationViewerProps {
   projectId: string;
@@ -19,6 +20,9 @@ const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const [collectionId, setCollectionId] = useState<string | null>(null);
   const [isLinked, setIsLinked] = useState(false);
+  const [activeDocument, setActiveDocument] = useState<{id: string; title: string} | null>(null);
+  const [documentContent, setDocumentContent] = useState<string>('');
+  const [documentLoading, setDocumentLoading] = useState(false);
 
   // Buscar informações da documentação ao carregar o componente
   useEffect(() => {
@@ -132,6 +136,29 @@ const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
     }
   };
 
+  // Função para carregar o conteúdo de um documento específico
+  const handleSelectDocument = async (documentId: string, documentTitle: string) => {
+    try {
+      setDocumentLoading(true);
+      setActiveDocument({ id: documentId, title: documentTitle });
+      
+      const response = await axios.get(`/api/outline/documents/${documentId}`);
+      
+      if (response.data.success) {
+        // Formatar o Markdown para exibição
+        const content = response.data.data.text || '';
+        setDocumentContent(content);
+      } else {
+        setDocumentContent('Não foi possível carregar o conteúdo do documento.');
+      }
+    } catch (error) {
+      console.error('Erro ao carregar conteúdo do documento:', error);
+      setDocumentContent('Erro ao carregar o conteúdo do documento.');
+    } finally {
+      setDocumentLoading(false);
+    }
+  };
+
   // Se estiver carregando, mostrar spinner
   if (loading) {
     return (
@@ -168,23 +195,59 @@ const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
     );
   }
 
-  // Se estiver vinculado, mas não tiver URL de autenticação
-  if (!authUrl) {
+  // Função para formatação básica do Markdown
+  const formatMarkdown = (markdown: string): JSX.Element => {
+    // Dividir o texto em linhas
+    const lines = markdown.split('\n');
+    
+    // Processar linha por linha
     return (
-      <div className="flex flex-col items-center justify-center h-96 space-y-4">
-        <Alert 
-          variant="warning" 
-          title="Configuração incompleta" 
-          description="A documentação está configurada, mas não foi possível gerar o link de acesso."
-        />
-        <Button onClick={() => window.location.reload()}>
-          Tentar novamente
-        </Button>
+      <div className="markdown">
+        {lines.map((line, index) => {
+          // Cabeçalhos
+          if (line.startsWith('#')) {
+            const headingLevel = line.match(/^#+/)?.[0].length || 1;
+            const text = line.replace(/^#+\s+/, '');
+            const Tag = `h${Math.min(headingLevel, 6)}` as keyof JSX.IntrinsicElements;
+            return <Tag key={index} className="font-bold my-3">{text}</Tag>;
+          }
+          
+          // Listas
+          if (line.match(/^\s*[-*+]\s+/)) {
+            const text = line.replace(/^\s*[-*+]\s+/, '');
+            return <li key={index} className="ml-6">{text}</li>;
+          }
+          
+          // Negrito
+          if (line.includes('**') || line.includes('__')) {
+            line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            line = line.replace(/__(.*?)__/g, '<strong>$1</strong>');
+          }
+          
+          // Itálico
+          if (line.includes('*') || line.includes('_')) {
+            line = line.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            line = line.replace(/_(.*?)_/g, '<em>$1</em>');
+          }
+          
+          // Links
+          if (line.includes('[') && line.includes(']') && line.includes('(') && line.includes(')')) {
+            line = line.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-blue-600 hover:underline">$1</a>');
+          }
+          
+          // Linhas vazias são parágrafos
+          if (line.trim() === '') {
+            return <br key={index} />;
+          }
+          
+          // Texto normal é parágrafo
+          return <p key={index} className="my-2" dangerouslySetInnerHTML={{ __html: line }} />;
+        })}
       </div>
     );
-  }
+  };
 
-  // Renderizar o iframe com a documentação do Outline
+  // Renderizar o layout dividido com a árvore de documentos e o conteúdo
   return (
     <div className="h-full flex flex-col">
       <div className="flex justify-between items-center mb-4 p-2 bg-gray-50 rounded">
@@ -194,13 +257,48 @@ const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
         </Button>
       </div>
       
-      <div className="flex-grow overflow-hidden rounded-lg border">
-        <iframe
-          src={authUrl}
-          className="w-full h-full"
-          title="Documentação do Projeto"
-          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-        />
+      <div className="flex-grow overflow-hidden flex border rounded-lg">
+        {/* Painel lateral com a árvore de documentos */}
+        <div className="w-1/4 border-r overflow-auto">
+          {collectionId && (
+            <DocumentationTree 
+              projectId={projectId}
+              organizationSlug={organizationSlug}
+              collectionId={collectionId}
+              onSelectDocument={handleSelectDocument}
+            />
+          )}
+        </div>
+        
+        {/* Área principal de conteúdo */}
+        <div className="w-3/4 overflow-auto">
+          {activeDocument ? (
+            <div className="p-4">
+              {documentLoading ? (
+                <div className="flex justify-center items-center h-40">
+                  <Spinner size="md" />
+                </div>
+              ) : (
+                <div>
+                  <h1 className="text-2xl font-bold mb-4">{activeDocument.title}</h1>
+                  <div className="prose max-w-none">
+                    {documentContent ? (
+                      formatMarkdown(documentContent)
+                    ) : (
+                      <p className="text-gray-500">
+                        Selecione um documento para ver seu conteúdo.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full p-4 text-gray-500">
+              <p>Selecione um documento na árvore ao lado para ver seu conteúdo.</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
