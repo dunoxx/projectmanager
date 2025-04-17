@@ -1,38 +1,33 @@
-FROM node:18-alpine as builder
+FROM node:16-alpine AS builder
 
 WORKDIR /app
 
-# Instalar dependências globais
-RUN apk add --no-cache python3 make g++ bash
-
-# Copiar arquivos de dependências
-COPY package.json ./
+# Copiar arquivos de dependência
+COPY package*.json ./
 
 # Instalar dependências
-RUN yarn install
+RUN npm install
 
-# Copiar código fonte
+# Copiar o código fonte
 COPY . .
 
-# Construir a aplicação
-RUN yarn build
+# Compilar a aplicação
+RUN npm run build
 
-# Imagem de produção
-FROM node:18-alpine
+# Segunda etapa: ambiente de produção
+FROM node:16-alpine AS runner
 
 WORKDIR /app
 
-# Copiar dependências e arquivos de build
-COPY --from=builder /app/package.json ./
+# Copiar apenas arquivos necessários da etapa de build
+COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/next.config.js ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
 
-# Instalar apenas dependências de produção
-RUN yarn install --production
+# Expor porta do frontend
+EXPOSE 3000
 
-# Expor a porta
-EXPOSE 8080
-
-# Comando para iniciar o serviço
-CMD ["yarn", "start"] 
+# Comando para iniciar a aplicação
+CMD ["npm", "start"] 

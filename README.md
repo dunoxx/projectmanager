@@ -34,11 +34,41 @@ projectmanager/
 - **Infraestrutura**: Docker, Nginx
 - **Testes**: Jest, React Testing Library
 
-## Requisitos de Sistema
+## Instalação no Easypanel
 
-- Node.js 16.x ou superior
-- PostgreSQL 14.x ou superior
-- Docker e Docker Compose (para desenvolvimento)
+### Requisitos
+
+- Servidor com Easypanel instalado
+- Docker e Docker Compose
+- Git
+
+### Passos para instalação
+
+1. **Clone o repositório no servidor**:
+   ```bash
+   git clone https://github.com/seu-usuario/projectmanager.git
+   cd projectmanager
+   ```
+
+2. **Configuração no Easypanel**:
+   - Acesse o Easypanel
+   - Clique em "Adicionar Aplicação" > "Importar Aplicação"
+   - Selecione "Docker Compose"
+   - Navegue até a pasta onde o repositório foi clonado
+   - Selecione o arquivo `docker-compose.yml`
+   - Configure as variáveis de ambiente (use `.env.example` como referência)
+   - Clique em "Implantar"
+
+3. **Pós-instalação**:
+   - O Docker Compose irá iniciar automaticamente os serviços (postgres, api, web)
+   - O serviço da API executará as migrações e o seed do banco de dados
+   - Após a conclusão da implantação, acesse a aplicação através da URL configurada
+
+### Acessando a aplicação
+
+- **Frontend**: http://seu-dominio.com (ou porta configurada no Easypanel)
+- **API**: http://seu-dominio.com:3001 (ou porta configurada)
+- Credenciais padrão: admin@example.com / senha123
 
 ## Configuração do Ambiente de Desenvolvimento
 
@@ -88,10 +118,6 @@ Se um projeto não tiver documentação, será exibido um botão para criar uma 
 ### Sincronizar Permissões
 
 As permissões entre o projeto no Plane e a coleção no Outline podem ser sincronizadas a qualquer momento pelo botão "Sincronizar Permissões" na interface.
-
-## Fluxo de Autenticação
-
-O sistema utiliza JWT para autenticação única entre as plataformas integradas. Quando um usuário acessa a documentação de um projeto, é gerada uma URL autenticada para o Outline que mantém o contexto da sessão.
 
 ## Estrutura do Banco de Dados
 

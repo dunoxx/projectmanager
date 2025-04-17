@@ -1,0 +1,143 @@
+{
+  "name": "projectmanager",
+  "description": "Integração entre Plane e Outline para gerenciamento de projetos e documentação",
+  "version": "1.0.0",
+  "services": [
+    {
+      "id": "api",
+      "name": "API",
+      "type": "app",
+      "description": "API de integração entre Plane e Outline",
+      "image": "node:16",
+      "workdir": "/app",
+      "command": "cd packages/api && npm start",
+      "volumes": [
+        {
+          "host": "/data/projectmanager/api",
+          "container": "/app/packages/api/data"
+        }
+      ],
+      "env": [
+        {
+          "name": "PORT",
+          "description": "Porta da API",
+          "default": "3001"
+        },
+        {
+          "name": "DATABASE_URL",
+          "description": "URL de conexão com o banco de dados PostgreSQL",
+          "default": "postgresql://postgres:postgres@postgres:5432/projectmanager"
+        },
+        {
+          "name": "JWT_SECRET",
+          "description": "Segredo para assinatura de tokens JWT",
+          "default": "change-this-in-production",
+          "secret": true
+        },
+        {
+          "name": "PLANE_URL",
+          "description": "URL da API do Plane",
+          "default": "http://plane:3000/api"
+        },
+        {
+          "name": "OUTLINE_URL",
+          "description": "URL da API do Outline",
+          "default": "http://outline:3001/api"
+        },
+        {
+          "name": "NODE_ENV",
+          "description": "Ambiente de execução",
+          "default": "production"
+        }
+      ],
+      "ports": [
+        {
+          "container": 3001,
+          "http": 3001
+        }
+      ],
+      "dependencies": ["postgres"]
+    },
+    {
+      "id": "web",
+      "name": "Frontend",
+      "type": "app",
+      "description": "Interface web do ProjectManager",
+      "image": "node:16",
+      "workdir": "/app",
+      "command": "cd packages/web && npm start",
+      "volumes": [
+        {
+          "host": "/data/projectmanager/web",
+          "container": "/app/packages/web/data"
+        }
+      ],
+      "env": [
+        {
+          "name": "API_URL",
+          "description": "URL da API",
+          "default": "http://localhost:3001"
+        },
+        {
+          "name": "PORT",
+          "description": "Porta do servidor web",
+          "default": "3000"
+        },
+        {
+          "name": "NODE_ENV",
+          "description": "Ambiente de execução",
+          "default": "production"
+        }
+      ],
+      "ports": [
+        {
+          "container": 3000,
+          "http": 80
+        }
+      ],
+      "dependencies": ["api"]
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "type": "postgres",
+      "description": "Banco de dados PostgreSQL",
+      "version": "14",
+      "env": [
+        {
+          "name": "POSTGRES_USER",
+          "default": "postgres"
+        },
+        {
+          "name": "POSTGRES_PASSWORD",
+          "default": "postgres",
+          "secret": true
+        },
+        {
+          "name": "POSTGRES_DB",
+          "default": "projectmanager"
+        }
+      ],
+      "volumes": [
+        {
+          "host": "/data/projectmanager/postgres",
+          "container": "/var/lib/postgresql/data"
+        }
+      ],
+      "ports": [
+        {
+          "container": 5432,
+          "public": false
+        }
+      ]
+    }
+  ],
+  "installation": {
+    "steps": [
+      "Implante os serviços na seguinte ordem: postgres, api, web",
+      "Após a implantação do serviço 'api', execute a migração do banco de dados com: cd packages/api && npm run prisma:migrate",
+      "Execute o seed do banco de dados com: cd packages/api && npm run db:seed",
+      "Acesse a aplicação web na URL configurada no painel do Easypanel"
+    ]
+  }
+} 

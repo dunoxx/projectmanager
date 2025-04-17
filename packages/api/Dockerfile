@@ -1,40 +1,25 @@
-FROM node:18-alpine
+FROM node:16-alpine
 
 WORKDIR /app
 
-# Instalar dependências globais
-RUN apk add --no-cache python3 make g++ bash
-
-# Copiar arquivos de dependências
-COPY package.json ./
+# Copiar arquivos de dependência
+COPY package*.json ./
+COPY prisma ./prisma/
 
 # Instalar dependências
-RUN yarn install
+RUN npm install
 
-# Criar pasta dist e arquivo JavaScript simples
-RUN mkdir -p dist && \
-    echo 'console.log("API iniciando...");\n\
-const http = require("http");\n\
-\n\
-const server = http.createServer((req, res) => {\n\
-  res.writeHead(200, { "Content-Type": "application/json" });\n\
-  const response = {\n\
-    status: "ok",\n\
-    message: "API do Project Manager está funcionando!"\n\
-  };\n\
-  res.end(JSON.stringify(response));\n\
-});\n\
-\n\
-const port = process.env.PORT || 4000;\n\
-server.listen(port, () => {\n\
-  console.log(`Servidor rodando na porta ${port}`);\n\
-});' > dist/index.js
+# Gerar cliente Prisma
+RUN npx prisma generate
 
-# Copiar código fonte
+# Copiar o restante dos arquivos
 COPY . .
 
-# Expor a porta
-EXPOSE 4000
+# Compilar TypeScript
+RUN npm run build
 
-# Comando para iniciar o serviço
-CMD ["node", "dist/index.js"] 
+# Expor porta da API
+EXPOSE 3001
+
+# Comando para iniciar a aplicação
+CMD ["npm", "start"] 
