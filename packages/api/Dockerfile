@@ -6,8 +6,9 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Instalar dependências
-RUN npm install
+# Instalar dependências - com força para garantir instalação completa
+RUN npm install --force
+RUN npm install express-validator --save
 
 # Gerar cliente Prisma
 RUN npx prisma generate
