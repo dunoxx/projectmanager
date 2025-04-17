@@ -17,6 +17,9 @@ COPY . .
 # Definir variáveis de ambiente para o build
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV NEXT_PUBLIC_API_URL=/api
+ENV NEXT_PUBLIC_PLANE_URL=/plane
+ENV NEXT_PUBLIC_OUTLINE_URL=/outline
 
 # Compilar a aplicação
 RUN npm run build
@@ -28,6 +31,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_API_URL=/api
+ENV NEXT_PUBLIC_PLANE_URL=/plane
+ENV NEXT_PUBLIC_OUTLINE_URL=/outline
 
 # Criar diretório public necessário
 RUN mkdir -p public

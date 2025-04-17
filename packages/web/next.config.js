@@ -61,6 +61,24 @@ const nextConfig = {
       },
     ];
   },
+  
+  // Configuração de tratamento de rotas para o ambiente de proxy do Easypanel
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://api:3001/:path*'
+      },
+      {
+        source: '/plane/:path*',
+        destination: 'http://plane:3000/:path*'
+      },
+      {
+        source: '/outline/:path*',
+        destination: 'http://outline:3001/:path*'
+      }
+    ];
+  }
 }
 
 module.exports = nextConfig 
