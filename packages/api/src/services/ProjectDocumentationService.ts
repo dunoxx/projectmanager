@@ -133,8 +133,6 @@ class ProjectDocumentationService {
           outlineCollectionId: collection.id,
           organizationSlug,
           syncEnabled: true,
-          organizationId: "default",  // Adicionando campos obrigatórios
-          syncInterval: 60, // Intervalo padrão de 60 minutos
           createdAt: new Date(),
           updatedAt: new Date()
         }

@@ -51,12 +51,10 @@ export interface OutlineCollection {
 
 export interface IntegrationConfig {
   id: string;
-  organizationId: string;
-  planeApiKey?: string;
-  outlineApiKey?: string;
+  planeProjectId: string;
+  outlineCollectionId: string;
+  organizationSlug: string;
   syncEnabled: boolean;
-  syncInterval: number;
-  lastSyncAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
